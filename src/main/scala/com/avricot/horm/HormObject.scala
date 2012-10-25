@@ -15,6 +15,7 @@ import org.apache.hadoop.hbase.client.Delete
 import java.util.ArrayList
 import org.apache.hadoop.hbase.client.Scan
 import java.lang.reflect.ParameterizedType
+import org.slf4j.LoggerFactory
 
 /**
  * Default hbase trait.
@@ -26,6 +27,7 @@ trait HormBaseObject {
  * Default hbase object, with hbase helpers for model companions.
  */
 class HormObject[A <: HormBaseObject](tabName: String = null) {
+  val logger = LoggerFactory.getLogger(HormConfig.getClass())
   //Get the class of A
   val persistentClass = getClass().getGenericSuperclass().asInstanceOf[ParameterizedType].getActualTypeArguments()(0).asInstanceOf[Class[A]];
   val tableName = if (tabName == null) persistentClass.getSimpleName().toLowerCase() else tabName
@@ -129,6 +131,7 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
     val put = new Put(obj.getHBaseId)
     //Convert the value to an Array[Byte] and add it to the put.
     def findType(path: Array[Byte], name: String, value: Any): Unit = {
+      logger.debug("find type {} {}", name, value)
       val bytes = value match {
         case v if v == null => null
         case v: Int => Bytes.toBytes(v.asInstanceOf[Int])
@@ -139,25 +142,24 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
         case v: DateTime => Bytes.toBytes(isoFormatter.print(v.asInstanceOf[DateTime]))
         case v: Array[Byte] => v.asInstanceOf[Array[Byte]]
         case v: scala.collection.mutable.HashMap[_, _] => {
-          println("ok i'm a map")
           for ((k, v) <- v.asInstanceOf[scala.collection.mutable.HashMap[_, _]]) {
-            println(name + " " + k.toString + ", " + v)
+            logger.debug("{} , {}", k.toString, v)
             findType(getNexPath(path, name), k.toString, v)
           }
           null
         }
         case v: Any => exploreObj(getNexPath(path, name), v); null
-        case _ => println("error type is not supported for name " + name + " and path " + Bytes.toString(path)); null
+        case _ => logger.warn("type is not supported for name {} and path {}", name, Bytes.toString(path)); null
       }
       if (bytes != null) {
-        println(path.size + "put.add(" + Bytes.toString(getNexPath(path, name)) + ", " + bytes + "))")
+        logger.debug("add to path {}:{}", path, name)
         put.add(HormConfig.defaultFamilyName, getNexPath(path, name), bytes)
       }
     }
 
     //Explore an object using reflection and save all its type one by one, recursivly.
     def exploreObj(family: Array[Byte], obj: Any) = {
-      println("exploring(" + Bytes.toString(family) + ", " + obj.getClass)
+      logger.debug("exploring object {} ", obj.getClass)
       for (field <- obj.getClass.getDeclaredFields) {
         field.setAccessible(true)
         val t = field.getType()
@@ -200,7 +202,7 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
         case B => Bytes.toBoolean(fieldValue)
         case D => isoFormatter.parseDateTime(Bytes.toString(fieldValue))
         case A => fieldValue
-        case _ => println("Damn, i'm nothing known !" + klass); null
+        case _ => logger.warn("Horm can't map this class ! {}", klass); null
       }
     }
 
@@ -218,16 +220,16 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
 
     //Build an object of the given class, with the given family (family name is the field name)
     def buildObject(klass: Class[_], family: String): Any = {
-      println("----------" + family)
+      logger.debug("---------- {}", family)
       if (!objArgs.contains(family)) return null
       val args = scala.collection.mutable.MutableList[Object]()
       //val mapArgs
       //scan all the object field
-      println("klass=" + klass)
+      logger.debug("klass={}", klass)
       klass match {
         //Map constructor
         case M => {
-          println("ok i'm a map family " + family)
+          logger.debug(" {} is a map", family)
           val map = scala.collection.mutable.Map[String, String]();
           //We don't have any data on this company, we return null. //TODO return an empty map instead ?
           if (!objArgs.contains(family)) return null
@@ -240,17 +242,17 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
         //AnyRef constructor
         case _ => {
           for (field <- klass.getDeclaredFields()) {
-            println("objArgs.get(" + family + ").get(" + field.getName() + ")")
+            logger.debug("objArgs.get({}).get({})", family, field.getName)
             //If the field exist (AnyRef), getValue will build it.
             if (objArgs.get(family).get.contains(field.getName())) {
-              println("existst" + objArgs.get(family).get(field.getName()))
+              if (logger.isDebugEnabled()) logger.debug("exists{}" + objArgs.get(family).get(field.getName()))
               val value = getValue(field.getType(), objArgs.get(family).get(field.getName())).asInstanceOf[Object]
               args += value
             } else { //Else, it might be null or an embbed object, or a map, let's build that.
               args += buildObject(field.getType(), getNexPath(family, field.getName())).asInstanceOf[Object]
             }
           }
-          println("construct " + klass.getName())
+          logger.debug("construct {}", klass.getName())
           val constructor = klass.getConstructors.head
           constructor.newInstance(args: _*)
         }
