@@ -19,23 +19,18 @@ import java.lang.reflect.ParameterizedType
 /**
  * Default hbase trait.
  */
-trait BaseHBaseObject {
+trait HormBaseObject {
   def getHBaseId(): Array[Byte]
-}
-
-object HBaseObject {
-  val defaultFamilyNameStr = "data"
-  val defaultFamilyName = Bytes.toBytes(defaultFamilyNameStr)
 }
 /**
  * Default hbase object, with hbase helpers for model companions.
  */
-class HBaseObject[A <: BaseHBaseObject](name: String) {
+class HormObject[A <: HormBaseObject](tabName: String = null) {
   //Get the class of A
   val persistentClass = getClass().getGenericSuperclass().asInstanceOf[ParameterizedType].getActualTypeArguments()(0).asInstanceOf[Class[A]];
-  val tableName = name
+  val tableName = if (tabName == null) persistentClass.getSimpleName().toLowerCase() else tabName
   val config = HBaseConfiguration.create()
-  val table = new HTable(config, tableName);
+  val table = HormConfig.getTable(tableName)
   val defaultPath = Bytes.toBytes("")
 
   val isoFormatter = ISODateTimeFormat.dateTime();
@@ -156,7 +151,7 @@ class HBaseObject[A <: BaseHBaseObject](name: String) {
       }
       if (bytes != null) {
         println(path.size + "put.add(" + Bytes.toString(getNexPath(path, name)) + ", " + bytes + "))")
-        put.add(HBaseObject.defaultFamilyName, getNexPath(path, name), bytes)
+        put.add(HormConfig.defaultFamilyName, getNexPath(path, name), bytes)
       }
     }
 
