@@ -19,7 +19,7 @@ object HormConfig {
   /**
    * Init the hbase connection. Should be called only once during startup.
    */
-  def init(zookeeperQuorum: String, zookeeperClientPort: Int) = {
+  def init(zookeeperQuorum: String = "localhost", zookeeperClientPort: Int = 2181) = {
     configuration = HBaseConfiguration.create();
     configuration.setStrings(HConstants.ZOOKEEPER_QUORUM, zookeeperQuorum)
     configuration.setInt(HConstants.ZOOKEEPER_CLIENT_PORT, zookeeperClientPort)
