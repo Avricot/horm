@@ -7,7 +7,6 @@ Data is stored in the "data" column family, typicaly :
 
     data.firstname => "quentin"
     data.id => 1
-    data.id => 1
     data.myMap.k1 => "myKey1"
     data.myMap.v1 => "value of myKey1"
     data.mySubObject.field1 => "field1Value"
