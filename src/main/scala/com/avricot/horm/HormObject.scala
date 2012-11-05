@@ -16,6 +16,12 @@ import java.util.ArrayList
 import org.apache.hadoop.hbase.client.Scan
 import java.lang.reflect.ParameterizedType
 import org.slf4j.LoggerFactory
+import java.lang.reflect.Type
+import scala.collection.mutable.MutableList
+import scala.collection.mutable.LinkedList
+import scala.collection.mutable.ArrayBuffer
+import com.avricot.horm.reader.HormReader
+import com.avricot.horm.writer.HormWriter
 
 /**
  * Default hbase trait.
@@ -31,6 +37,7 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   //Get the class of A
   val persistentClass = getClass().getGenericSuperclass().asInstanceOf[ParameterizedType].getActualTypeArguments()(0).asInstanceOf[Class[A]];
   val tableName = if (tabName == null) persistentClass.getSimpleName().toLowerCase() else tabName
+
   val config = HBaseConfiguration.create()
   val table = HormConfig.getTable(tableName)
   val defaultPath = Bytes.toBytes("")
@@ -128,136 +135,18 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
    * Recursivly explore imbricated object.
    */
   def save(obj: A) = {
-    val put = new Put(obj.getHBaseId)
-    //Convert the value to an Array[Byte] and add it to the put.
-    def findType(path: Array[Byte], name: String, value: Any): Unit = {
-      logger.debug("find type {} {}", name, value)
-      val bytes = value match {
-        case v if v == null => null
-        case v: Int => Bytes.toBytes(v.asInstanceOf[Int])
-        case v: Long => Bytes.toBytes(v.asInstanceOf[Long])
-        case v: Float => Bytes.toBytes(v.asInstanceOf[Float])
-        case v: String => Bytes.toBytes(v.asInstanceOf[String])
-        case v: Boolean => Bytes.toBytes(v.asInstanceOf[Boolean])
-        case v: DateTime => Bytes.toBytes(isoFormatter.print(v.asInstanceOf[DateTime]))
-        case v: Array[Byte] => v.asInstanceOf[Array[Byte]]
-        case v: scala.collection.mutable.HashMap[_, _] => {
-          for ((k, v) <- v.asInstanceOf[scala.collection.mutable.HashMap[_, _]]) {
-            logger.debug("{} , {}", k.toString, v)
-            findType(getNexPath(path, name), k.toString, v)
-          }
-          null
-        }
-        case v: Any => exploreObj(getNexPath(path, name), v); null
-        case _ => logger.warn("type is not supported for name {} and path {}", name, Bytes.toString(path)); null
-      }
-      if (bytes != null) {
-        logger.debug("add to path {}:{}", path, name)
-        put.add(HormConfig.defaultFamilyName, getNexPath(path, name), bytes)
-      }
-    }
-
-    //Explore an object using reflection and save all its type one by one, recursivly.
-    def exploreObj(family: Array[Byte], obj: Any) = {
-      logger.debug("exploring object {} ", obj.getClass)
-      for (field <- obj.getClass.getDeclaredFields) {
-        field.setAccessible(true)
-        val t = field.getType()
-        val value = field.get(obj)
-        findType(family, field.getName(), value)
-      }
-    }
-    exploreObj(defaultPath, obj)
+    val put = HormWriter.write(defaultPath, obj)
     table.put(put)
   }
 
-  //Return the next path (do not add the . if it's the root path)
-  private def getNexPath(path: Array[Byte], name: String) = if (path.length == 0) Bytes.toBytes(name) else Bytes.toBytes(Bytes.toString(path) + "." + name)
-  private def getNexPath(path: String, name: String) = if (path.length == 0) name else path + "." + name
-
-  val I = classOf[Int]
-  val L = classOf[Long]
-  val F = classOf[Float]
-  val S = classOf[String]
-  val B = classOf[Boolean]
-  val D = classOf[DateTime]
-  val A = classOf[Array[Byte]]
-  val M = classOf[scala.collection.mutable.Map[_, _]]
   /**
    * Build an object from a result
    */
   def getFromResult(result: Result): Option[A] = {
-    if (result.isEmpty()) {
-      return None
+    var r = HormReader.read(result, persistentClass)
+    r match {
+      case None => None
+      case _ => Option[A](r.asInstanceOf[A])
     }
-    val klass = A.getClass()
-
-    //Return the value from the given Array[Byte]
-    def getValue(klass: Class[_], fieldValue: Array[Byte]) = {
-      klass match {
-        case I => Bytes.toInt(fieldValue)
-        case L => Bytes.toLong(fieldValue)
-        case F => Bytes.toFloat(fieldValue)
-        case S => Bytes.toString(fieldValue)
-        case B => Bytes.toBoolean(fieldValue)
-        case D => isoFormatter.parseDateTime(Bytes.toString(fieldValue))
-        case A => fieldValue
-        case _ => logger.warn("Horm can't map this class ! {}", klass); null
-      }
-    }
-
-    //Init and sort the data by column family.
-    val objArgs = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Array[Byte]]]();
-    for (kv <- result.raw()) {
-      val splitKV = kv.split()
-      val fullName = Bytes.toString(splitKV.getQualifier())
-      val containsDot = fullName.contains(".")
-      val (path, fieldName) = if (!containsDot) ("", fullName) else (fullName.substring(0, fullName.lastIndexOf(".")), fullName.substring(fullName.lastIndexOf(".") + 1))
-      val fieldValues = objArgs.get(path) getOrElse scala.collection.mutable.Map[String, Array[Byte]]();
-      fieldValues(fieldName) = splitKV.getValue()
-      objArgs(path) = fieldValues
-    }
-
-    //Build an object of the given class, with the given family (family name is the field name)
-    def buildObject(klass: Class[_], family: String): Any = {
-      logger.debug("---------- {}", family)
-      if (!objArgs.contains(family)) return null
-      val args = scala.collection.mutable.MutableList[Object]()
-      //val mapArgs
-      //scan all the object field
-      logger.debug("klass={}", klass)
-      klass match {
-        //Map constructor
-        case M => {
-          logger.debug(" {} is a map", family)
-          val map = scala.collection.mutable.Map[String, String]();
-          //We don't have any data on this company, we return null. //TODO return an empty map instead ?
-          if (!objArgs.contains(family)) return null
-          //Build the map from the results
-          for ((k, v) <- objArgs.get(family).get) {
-            map(k) = Bytes.toString(v)
-          }
-          map
-        }
-        //AnyRef constructor
-        case _ => {
-          for (field <- klass.getDeclaredFields()) {
-            logger.debug("objArgs.get({}).get({})", family, field.getName)
-            //If the field exist (AnyRef), getValue will build it.
-            if (objArgs.get(family).get.contains(field.getName())) {
-              if (logger.isDebugEnabled()) logger.debug("exists{}" + objArgs.get(family).get(field.getName()))
-              val value = getValue(field.getType(), objArgs.get(family).get(field.getName())).asInstanceOf[Object]
-              args += value
-            } else { //Else, it might be null or an embbed object, or a map, let's build that.
-              args += buildObject(field.getType(), getNexPath(family, field.getName())).asInstanceOf[Object]
-            }
-          }
-          logger.debug("construct {}", klass.getName())
-          val constructor = klass.getConstructors.head
-          constructor.newInstance(args: _*)
-        }
-      }
-    }
-    Option[A](buildObject(persistentClass, "").asInstanceOf[A])
   }
 }
