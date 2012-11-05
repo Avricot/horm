@@ -5,13 +5,13 @@ Horm is a scal-hbase orm that map scala classes to hbase data.
 Hbase data are easy to read (it uses field name to store datas), so the data is easy to read in a M/R batch without building the object with the orm.
 Data is stored in the "data" column family, typicaly : 
 
-data.firstname => "quentin"
-data.id => 1
-data.id => 1
-data.myMap.k1 => "myKey1"
-data.myMap.v1 => "value of myKey1"
-data.mySubObject.field1 => "field1Value"
-...
+    data.firstname => "quentin"
+    data.id => 1
+    data.id => 1
+    data.myMap.k1 => "myKey1"
+    data.myMap.v1 => "value of myKey1"
+    data.mySubObject.field1 => "field1Value"
+    ...
 
 ###Horm initialization
 #####Zookeeper configuration
