@@ -2,6 +2,16 @@ horm
 ====
 
 Horm is a scal-hbase orm that map scala classes to hbase data.
+Hbase data are easy to read (it uses field name to store datas), so the data is easy to read in a M/R batch without building the object with the orm.
+Data is stored in the "data" column family, typicaly : 
+
+data.firstname => "quentin"
+data.id => 1
+data.id => 1
+data.myMap.k1 => "myKey1"
+data.myMap.v1 => "value of myKey1"
+data.mySubObject.field1 => "field1Value"
+...
 
 ###Horm initialization
 #####Zookeeper configuration
@@ -61,7 +71,7 @@ If your map is a different kind, you need to add the HormMap annotation in order
 
 So for example :
 
-    case class MyClass(id: Long, firstname: String, @(HormMap @field )(key=classOf[Boolean], value=classOf[Long]) data: Map[Boolean, Long]) extends HormBaseObject {
+    case class MyClass(id: Long, firstname: String, @(HormMap @field )(key=classOf[Boolean], value=classOf[Long]) myMap: Map[Boolean, Long]) extends HormBaseObject {
        override def getHBaseId() = Bytes.toBytes(id)
     }
 
