@@ -10,9 +10,11 @@ import annotation.target.field
 import scala.annotation.target.field
 import scala.reflect.BeanProperty
 import scala.annotation.target.field  
+import java.nio.ByteBuffer
+
 
 case class User(id: Long, firstname: String, lastname: Int)
-case class Trace(id: Array[Byte], category: String, user: User,  @(HormMap @field )(key=classOf[String], value=classOf[Int]) data: Map[String, Int],  @(HormMap @field )(key=classOf[Boolean], value=classOf[Long]) @BeanProperty imudata: scala.collection.immutable.Map[Boolean, Long], bool: Boolean) extends HormBaseObject {
+case class Trace(id: Array[Byte], category: String, user: User,  @(HormMap @field )(key=classOf[String], value=classOf[Int]) data: Map[String, Int],  @(HormMap @field )(key=classOf[Boolean], value=classOf[Long]) imudata: scala.collection.immutable.Map[Boolean, Long], bool: Boolean) extends HormBaseObject {
   override def getHBaseId() = id
 }
 
@@ -38,17 +40,18 @@ class TraceIntegrationTest {
     t
   }
 
-  @Ignore @Test def write() = {
+  @Ignore @Test def write(): Unit = {
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
     val trace = new Trace(Array[Byte](22), "category", user, Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true)
     Trace.save(trace)
   }
 
-  @Ignore @Test def delete() = { 
+  @Ignore @Test def delete(): Unit = { 
     Trace.delete(Array[Byte](22)) 
   }
 
+    
   @Test def writeReadDelete() = {
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
@@ -63,5 +66,7 @@ class TraceIntegrationTest {
     val t = Trace.find(Array[Byte](22))
     Assert.assertTrue(t == None)
   }
+  
+  
 
 }

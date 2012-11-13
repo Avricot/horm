@@ -16,6 +16,7 @@ libraryDependencies ++= Seq(
     "org.apache.hadoop" % "hadoop-common" % "0.23.1" withSources() ,
     "org.apache.hadoop" % "hadoop-auth" % "0.23.1" withSources() ,
     "joda-time" % "joda-time" % "2.1" withSources() ,
+    "com.google.guava" % "guava" % "r09" withSources() ,
     "org.slf4j" % "slf4j-api" % "1.6.6" withSources() )
 
 

@@ -22,13 +22,24 @@ import scala.collection.mutable.LinkedList
 import scala.collection.mutable.ArrayBuffer
 import com.avricot.horm.reader.HormReader
 import com.avricot.horm.writer.HormWriter
-
+import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
+import java.util.concurrent.Executors
+import java.util.concurrent.Callable
+import scala.collection.JavaConversions._
+import scala.collection.mutable.DoubleLinkedList
+import scala.collection.immutable.TreeMap
+import java.nio.ByteBuffer
+import java.util.Comparator
+import com.google.common.primitives.UnsignedBytes
+import com.google.common.primitives.SignedBytes
 /**
  * Default hbase trait.
  */
 trait HormBaseObject {
   def getHBaseId(): Array[Byte]
 }
+
 /**
  * Default hbase object, with hbase helpers for model companions.
  */
@@ -149,4 +160,40 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
       case _ => Option[A](r.asInstanceOf[A])
     }
   }
+
+  implicit object ByteOrdering extends Ordering[Array[Byte]] {
+    def compare(o1: Array[Byte], o2: Array[Byte]) = SignedBytes.lexicographicalComparator().compare(o1, o2)
+  }
+
+  /**
+   * Return a list of A element between the two element, using the HormConfig regionNumber parameter.
+   * If regionNumber = N then N request will be fired (one for each region).
+   * Region number must be stored on the first byte of the element id.
+   * Once all the requests are done, results are sorted by id (without the regionNumber byte)
+   */
+  def scanWithRegion(begin: Array[Byte], end: Array[Byte]): List[A] = {
+    val tasks = new ArrayList[Callable[List[A]]]()
+    val tab = table
+    for (i <- 0 until HormConfig.getRegionNumber) {
+      tasks.add(new Callable[List[A]]() {
+        override def call(): List[A] = {
+          val rs = table.getScanner(new Scan(Array(i.asInstanceOf[Byte]) ++ begin, Array(i.asInstanceOf[Byte]) ++ end))
+          val t = scan(rs, getFromResult(_))
+          t
+        }
+      })
+    }
+    val futures = HormConfig.getRegionScanExecutor.invokeAll(tasks)
+
+    var result = TreeMap[Array[Byte], A]()
+    for (f <- futures) {
+      println(f.get())
+      for (r <- f.get()) {
+        val idWithoutRegion = (r.getHBaseId.tail, r)
+        result += idWithoutRegion
+      }
+    }
+    result.values.toList
+  }
+
 }

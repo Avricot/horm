@@ -9,6 +9,8 @@ import org.apache.hadoop.hbase.HColumnDescriptor
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.client.HTable
+import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 
 object HormConfig {
   def logger = LoggerFactory.getLogger(HormConfig.getClass())
@@ -16,17 +18,22 @@ object HormConfig {
   val defaultFamilyName = Bytes.toBytes(defaultFamilyNameStr)
 
   private var configuration: Configuration = null
+  private var executor: ExecutorService = null
+  private var regionNumber: Int = 3
   /**
    * Init the hbase connection. Should be called only once during startup.
    */
-  def init(zookeeperQuorum: String = "localhost", zookeeperClientPort: Int = 2181) = {
+  def init(zookeeperQuorum: String = "localhost", zookeeperClientPort: Int = 2181, regionNum: Int = 3, regionThreadPoolSize: Int = 20) = {
     configuration = HBaseConfiguration.create();
     configuration.setStrings(HConstants.ZOOKEEPER_QUORUM, zookeeperQuorum)
     configuration.setInt(HConstants.ZOOKEEPER_CLIENT_PORT, zookeeperClientPort)
+    executor = Executors.newFixedThreadPool(regionThreadPoolSize);
+    regionNumber = regionNum
   }
 
+  def getRegionScanExecutor = executor
   def getHBaseConf = configuration
-
+  def getRegionNumber = regionNumber
   def getTable(tableName: String) = new HTable(configuration, tableName)
 
   /**

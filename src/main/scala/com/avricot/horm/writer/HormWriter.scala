@@ -58,7 +58,10 @@ object HormWriter {
         field.setAccessible(true)
         val t = field.getType()
         val value = field.get(obj)
-        findType(family, field.getName(), value)
+        //remove $outer access
+        if (!field.getName().startsWith("$")) {
+          findType(family, field.getName, value)
+        }
       }
     }
     exploreObj(defaultPath, obj)
