@@ -33,6 +33,7 @@ import java.nio.ByteBuffer
 import java.util.Comparator
 import com.google.common.primitives.UnsignedBytes
 import com.google.common.primitives.SignedBytes
+import scala.collection.immutable.Set
 /**
  * Default hbase trait.
  */
@@ -114,10 +115,13 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   /**
    * Scan a table, execute the given fun to retrive the A and return a list of the values.
    */
-  def scan(rs: ResultScanner, fun: (Result) => Option[A]): List[A] = rs.next() match {
-    case null => Nil
+  def scan[R](rs: ResultScanner, fun: (Result) => Option[R]): List[R] = rs.next() match {
+    case v if v == null => Nil
     case r =>
-      fun(r).get :: scan(rs, fun)
+      fun(r) match {
+        case None => scan(rs, fun)
+        case v => v.get :: scan(rs, fun)
+      }
   }
 
   /**
@@ -166,33 +170,82 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   }
 
   /**
+   * Execute the given action for each resultsScanner (as many as region number).
+   * Return a set of result.
+   */
+  def executeActionForRegions[R](begin: Array[Byte], end: Array[Byte], scanFunction: (ResultScanner) => List[R]): Set[R] = {
+    val futures = getFutureForRegions(begin, end, scanFunction)
+    var results = Set[R]()
+    futures.foreach(f => {
+      results = results ++ f.get()
+    })
+    results
+  }
+
+  /**
+   * Return a list of future with the result of each ResultScanner (as many as region number).
+   */
+  def getFutureForRegions[R](begin: Array[Byte], end: Array[Byte], scanFunction: (ResultScanner) => List[R]) = {
+    val tasks = new ArrayList[Callable[List[R]]]()
+    for (i <- 0 until HormConfig.getRegionNumber) {
+      tasks.add(new Callable[List[R]]() {
+        override def call(): List[R] = {
+          val rs = table.getScanner(new Scan(Array(i.asInstanceOf[Byte]) ++ begin, Array(i.asInstanceOf[Byte]) ++ end))
+          scanFunction(rs)
+        }
+      })
+    }
+    HormConfig.getRegionScanExecutor.invokeAll(tasks)
+  }
+
+  /**
+   * Execute the given method on for each object mapped, for each  results.
+   * Return a set of results.
+   * Fun might be executed in parallel.
+   */
+  def scan[R](begin: Array[Byte], end: Array[Byte], fun: (A) => Option[R]): Set[R] = {
+    executeActionForRegions(begin, end, rs => scan(rs, r => {
+      getFromResult(r) match {
+        case Some(obj) => fun(obj)
+        case _ => None
+      }
+    }))
+  }
+
+  /**
+   * Execute the given method on for each object mapped, for each  results.
+   * Return a set of results.
+   * Fun is not executed in parallel (synchronous hbase request).
+   */
+  def scanSynch[R](begin: Array[Byte], end: Array[Byte], fun: (A) => Option[R]): Set[R] = {
+    var results = Set[R]()
+    for (i <- 0 until HormConfig.getRegionNumber) {
+      val rs = table.getScanner(new Scan(Array(i.asInstanceOf[Byte]) ++ begin, Array(i.asInstanceOf[Byte]) ++ end))
+      results ++= scan(rs, r => {
+        getFromResult(r) match {
+          case Some(obj) => fun(obj)
+          case _ => None
+        }
+      })
+    }
+    results
+  }
+
+  /**
    * Return a list of A element between the two element, using the HormConfig regionNumber parameter.
    * If regionNumber = N then N request will be fired (one for each region).
    * Region number must be stored on the first byte of the element id.
    * Once all the requests are done, results are sorted by id (without the regionNumber byte)
    */
   def scanWithRegion(begin: Array[Byte], end: Array[Byte]): List[A] = {
-    val tasks = new ArrayList[Callable[List[A]]]()
-    val tab = table
-    for (i <- 0 until HormConfig.getRegionNumber) {
-      tasks.add(new Callable[List[A]]() {
-        override def call(): List[A] = {
-          val rs = table.getScanner(new Scan(Array(i.asInstanceOf[Byte]) ++ begin, Array(i.asInstanceOf[Byte]) ++ end))
-          val t = scan(rs, getFromResult(_))
-          t
-        }
-      })
-    }
-    val futures = HormConfig.getRegionScanExecutor.invokeAll(tasks)
-
+    val futures = getFutureForRegions(begin, end, rs => scan(rs, getFromResult(_)))
     var result = TreeMap[Array[Byte], A]()
-    for (f <- futures) {
-      println(f.get())
+    futures.foreach(f => {
       for (r <- f.get()) {
         val idWithoutRegion = (r.getHBaseId.tail, r)
         result += idWithoutRegion
       }
-    }
+    })
     result.values.toList
   }
 

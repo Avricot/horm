@@ -21,7 +21,6 @@ object HormWriter {
     //Convert the value to an Array[Byte] and add it to the put.
     def findType(path: Array[Byte], name: String, value: Any): Unit = {
       logger.debug("find type {} {}", name, value)
-      println(value.getClass)
       val bytes = value match {
         case v if v == null => null
         case v: Int => Bytes.toBytes(v.asInstanceOf[Int])
