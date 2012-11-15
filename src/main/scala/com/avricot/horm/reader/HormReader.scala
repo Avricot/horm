@@ -31,6 +31,7 @@ object HormReader {
   val A = classOf[Array[Byte]]
   val MM = classOf[scala.collection.mutable.Map[_, _]]
   val IM = classOf[scala.collection.immutable.Map[_, _]]
+  val SM = classOf[scala.collection.Map[_, _]]
 
   /**
    * Build an object from a result
@@ -101,7 +102,7 @@ object HormReader {
       logger.debug("klass={}", klass)
       klass match {
         //Map constructor
-        case k if k == MM || k == IM => {
+        case k if k == MM || k == IM || k == SM => {
           logger.debug(" {} is a map", family)
           //We don't have any data on this company, we return null. //TODO return an empty map instead ?
           if (!objArgs.contains(family)) return null
@@ -126,7 +127,7 @@ object HormReader {
           for ((i, kv) <- paramMap) {
             map(getValue(typeKey, kv.key)) = getValue(typeValue, kv.value)
           }
-          k match { case MM => map; case IM => map.toMap }
+          k match { case MM => map; case k if k == IM || k == SM => map.toMap }
         }
         //Constructor without parameters (case class without parameter).
         case k if k.getDeclaredFields().isEmpty => {

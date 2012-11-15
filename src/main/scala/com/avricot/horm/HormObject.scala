@@ -87,10 +87,10 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   }
 
   /**
-   * Delete an object by it's id.
+   * Delete an object.
    */
-  def delete(id: String): Unit = {
-    delete(Bytes.toBytes(id))
+  def delete(obj: A): Unit = {
+    delete(obj.getHBaseId)
   }
 
   /**

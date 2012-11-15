@@ -23,10 +23,10 @@ class HormScanIntegrationTest {
     val time = System.currentTimeMillis()
     val ids = fillHBase(time)
 
-    val results = ScanTrace.scanSynch(ByteBuffer.allocate(8).putLong(time + 3).array(), ByteBuffer.allocate(8).putLong(time + 4).array(), trace => {
+    val results = ScanTrace.scanSynch(ByteBuffer.allocate(8).putLong(time + 3).array(), ByteBuffer.allocate(8).putLong(time + 7).array(), trace => {
       Option(trace)
     })
-    Assert.assertEquals(1, results.size)
+    Assert.assertEquals(2, results.size)
     Assert.assertArrayEquals(ByteBuffer.allocate(9).put(1.asInstanceOf[Byte]).putLong(time + 3).array(), results.head.id)
 
     //Cleanup the database.
