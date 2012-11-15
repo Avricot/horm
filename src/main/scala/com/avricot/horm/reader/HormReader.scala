@@ -13,6 +13,7 @@ import com.avricot.horm.HormMap
 import com.avricot.horm.HormMap
 import java.lang.reflect.Field
 import com.avricot.horm.binder.raw.RawBinder
+import scala.collection.mutable.ListBuffer
 
 /**
  * Read scala object from hbase.
@@ -20,6 +21,7 @@ import com.avricot.horm.binder.raw.RawBinder
 object HormReader {
   val logger = LoggerFactory.getLogger(HormReader.getClass())
 
+  val BY = classOf[Byte]
   val I = classOf[Int]
   val L = classOf[Long]
   val F = classOf[Float]
@@ -37,10 +39,21 @@ object HormReader {
     if (result.isEmpty()) {
       return None
     }
-
+    //Return the default value of AnyVals.
+    def getDefaultValue(klass: Class[_]): Any = {
+      klass match {
+        case BY => 0
+        case I => 0
+        case L => 0L
+        case F => 0.0
+        case B => false
+        case _ => null
+      }
+    }
     //Return the value from the given Array[Byte]
     def getValue(klass: Class[_], fieldValue: Array[Byte]) = {
       klass match {
+        case BY => fieldValue(0)
         case I => Bytes.toInt(fieldValue)
         case L => Bytes.toLong(fieldValue)
         case F => Bytes.toFloat(fieldValue)
@@ -53,7 +66,7 @@ object HormReader {
     }
 
     //Init and sort the data by column family.
-    val objArgs = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Array[Byte]]]();
+    val objArgs = scala.collection.mutable.Map[String, scala.collection.mutable.Map[String, Array[Byte]]]("" -> scala.collection.mutable.Map[String, Array[Byte]]());
     for (kv <- result.raw()) {
       val splitKV = kv.split()
       val fullName = Bytes.toString(splitKV.getQualifier())
@@ -61,14 +74,26 @@ object HormReader {
       val (path, fieldName) = if (!containsDot) ("", fullName) else (fullName.substring(0, fullName.lastIndexOf(".")), fullName.substring(fullName.lastIndexOf(".") + 1))
       val fieldValues = objArgs.get(path) getOrElse scala.collection.mutable.Map[String, Array[Byte]]();
       fieldValues(fieldName) = splitKV.getValue()
+      //Handle imbricated objects without parameter (for example obj.obj2.obj3.id)
+      val buffer = new StringBuilder()
+      for (i <- 0 until fullName.size) {
+        if (fullName(i) == '.') {
+          val objName = buffer.toString
+          if (!objArgs.contains(objName)) {
+            objArgs(buffer.toString) = scala.collection.mutable.Map[String, Array[Byte]]()
+          }
+        }
+        buffer += fullName(i)
+      }
       objArgs(path) = fieldValues
+      logger.debug("objArgs({}) = {}", path, fieldValues)
     }
 
     //Build an object of the given class, with the given family (family name is the field name)
     def buildObject(klass: Class[_], family: String, currentField: Field): Any = {
       logger.debug("---------- {}", family)
       if (!objArgs.contains(family)) {
-        return null
+        return getDefaultValue(klass)
       }
       val args = scala.collection.mutable.MutableList[Object]()
       //val mapArgs
@@ -116,13 +141,20 @@ object HormReader {
               if (logger.isDebugEnabled()) logger.debug("exists{}" + objArgs.get(family).get(field.getName()))
               val value = getValue(field.getType(), objArgs.get(family).get(field.getName())).asInstanceOf[Object]
               args += value
-            } else { //Else, it might be null or an embbed object, or a map, let's build that.
+            } else {
+              //Else, it might be null or an embbed object, or a map, let's build that.
               args += buildObject(field.getType(), getNexPath(family, field.getName()), field).asInstanceOf[Object]
             }
           }
-          logger.debug("construct {}", klass.getName())
+          if (logger.isDebugEnabled()) {
+            logger.debug("construct {}", klass.getName())
+            logger.debug("argsNumber: {}", args.size)
+            args.foreach(logger.debug("arg: {}", _))
+          }
           val constructor = klass.getConstructors.head
-          constructor.newInstance(args: _*)
+          val o = constructor.newInstance(args: _*)
+          logger.debug("object constructed {}", o)
+          o
         }
       }
     }
