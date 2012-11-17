@@ -32,7 +32,7 @@ object TraceContent extends HormObject[TraceContent]
 
 class TraceIntegrationTest {
 
-  @Test def crudWrapper(): Unit = {
+  @Ignore @Test def crudWrapper(): Unit = {
     HormConfig.init("localhost", 2181)
     HormConfig.initTable(classOf[TripleObjWrapper])
     TripleObjWrapper.delete(Array[Byte](22))
@@ -61,7 +61,9 @@ class TraceIntegrationTest {
     t
   }
 
-  @Ignore @Test def write(): Unit = {
+  @Test def write(): Unit = {
+    HormConfig.init("localhost", 2181)
+    HormConfig.initTable(classOf[TraceContent])
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
     val trace = TraceContent(new Trace(Array[Byte](22), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
@@ -72,7 +74,7 @@ class TraceIntegrationTest {
     TraceContent.delete(Array[Byte](22))
   }
 
-  @Test def writeReadDelete() = {
+  @Ignore @Test def writeReadDelete() = {
     HormConfig.init("localhost", 2181)
     HormConfig.initTable(classOf[TraceContent])
     write()
