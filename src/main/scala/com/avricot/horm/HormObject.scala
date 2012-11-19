@@ -87,6 +87,13 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   }
 
   /**
+   * Return an object.
+   */
+  def find(obj: A): Option[A] = {
+    find(obj.getHBaseId)
+  }
+
+  /**
    * Delete an object.
    */
   def delete(obj: A): Unit = {

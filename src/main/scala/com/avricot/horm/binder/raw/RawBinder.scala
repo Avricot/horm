@@ -1,6 +1,7 @@
 package com.avricot.horm.binder.raw
 import org.apache.hadoop.hbase.util.Bytes
 import scala.collection.mutable.Map
+import org.joda.time.DateTime
 
 object RawBinder {
   val binders = Map[Class[_], RawBinder[_]](
@@ -13,7 +14,8 @@ object RawBinder {
     classOf[String] -> StringBinder,
     classOf[Boolean] -> BooleanBinder,
     classOf[java.lang.Boolean] -> BooleanBinder,
-    classOf[Array[Byte]] -> ArrayByteBinder)
+    classOf[Array[Byte]] -> ArrayByteBinder,
+    classOf[DateTime] -> DateTimeBinder)
 }
 
 /**
@@ -22,5 +24,5 @@ object RawBinder {
 trait RawBinder[T] {
   def read(param: Array[Byte]): T
   def write(obj: Any): Array[Byte]
-  def default = null
+  def default: Any = null
 }

@@ -7,8 +7,6 @@ import org.apache.hadoop.hbase.util.Bytes
  * Jodatime date binder
  */
 object DateTimeBinder extends RawBinder[DateTime] {
-  RawBinder.binders(classOf[DateTime]) = this
-
   def read(param: Array[Byte]) = {
     new DateTime(Bytes.toLong(param))
   }
