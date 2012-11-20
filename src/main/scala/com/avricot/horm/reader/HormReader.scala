@@ -120,6 +120,7 @@ object HormReader {
           case _ => (hormMap.key(), hormMap.value())
         }
         val map = scala.collection.mutable.Map[Any, Any]()
+        //String as key
         if (typeKey == S) {
           for ((k, v) <- objArgs.get(family).get) {
             map(k) = RawBinder.binders(typeValue).read(v)

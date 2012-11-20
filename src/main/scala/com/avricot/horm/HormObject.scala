@@ -34,6 +34,7 @@ import java.util.Comparator
 import com.google.common.primitives.UnsignedBytes
 import com.google.common.primitives.SignedBytes
 import scala.collection.immutable.Set
+import org.apache.hadoop.hbase.client.HTablePool
 /**
  * Default hbase trait.
  */
@@ -51,7 +52,8 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   val tableName = if (tabName == null) persistentClass.getSimpleName().toLowerCase() else tabName
 
   val config = HBaseConfiguration.create()
-  val table = HormConfig.getTable(tableName)
+  def table = HormConfig.getTable(tableName)
+
   val defaultPath = Bytes.toBytes("")
 
   val isoFormatter = ISODateTimeFormat.dateTime();

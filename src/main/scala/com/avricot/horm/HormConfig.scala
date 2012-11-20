@@ -11,6 +11,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.client.HTable
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
+import org.apache.hadoop.hbase.client.HTablePool
 
 object HormConfig {
   def logger = LoggerFactory.getLogger(HormConfig.getClass())
@@ -31,10 +32,11 @@ object HormConfig {
     regionNumber = regionNum
   }
 
+  val htablePool = new HTablePool(configuration, 1000)
   def getRegionScanExecutor = executor
   def getHBaseConf = configuration
   def getRegionNumber = regionNumber
-  def getTable(tableName: String) = new HTable(configuration, tableName)
+  def getTable(tableName: String) = htablePool.getTable(tableName)
 
   /**
    * Return a hbase admin object base on the conf properties.

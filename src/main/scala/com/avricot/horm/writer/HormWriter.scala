@@ -52,9 +52,9 @@ object HormWriter {
         }
         var i = 0
         val p = getNexPath(path, name)
-        println("getNexPath(" + Bytes.toString(path) + ", " + name + ")=" + Bytes.toString(p))
         for ((k, v) <- v.asInstanceOf[Map[_, _]]) {
           logger.debug("getting from map : {} , {}", k.toString, v)
+          //String as key
           if (typeKey == classOf[String]) {
             findType(p, k.asInstanceOf[String], null, v, put)
           } else {
