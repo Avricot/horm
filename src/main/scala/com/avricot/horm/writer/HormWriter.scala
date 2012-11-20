@@ -12,6 +12,8 @@ import com.avricot.horm.binder.raw.RawBinder
 import com.avricot.horm.binder.raw.ComplexBinder
 import com.avricot.horm.binder.complex.ObjectBinder
 import scala.collection.Seq
+import java.lang.reflect.Field
+import com.avricot.horm.HormMap
 
 /**
  * Write scala object to HBase.
@@ -21,16 +23,17 @@ object HormWriter {
 
   def write(defaultPath: Array[Byte], obj: HormBaseObject) = {
     val put = new Put(obj.getHBaseId)
-    findType(defaultPath, "", obj, put)
+    findType(defaultPath, "", null, obj, put)
     put
   }
 
   //Convert the value to an Array[Byte] and add it to the put.
-  def findType(path: Array[Byte], name: String, value: Any, put: Put): Unit = {
+  def findType(path: Array[Byte], name: String, field: Field, value: Any, put: Put): Unit = {
     if (value == null) {
       return
     }
     logger.debug("find type {} {}", name, value)
+    logger.debug("path {}", Bytes.toString(path))
     value match {
       case v if v == null => null
       case v if RawBinder.binders.contains(value.getClass) => {
@@ -40,15 +43,25 @@ object HormWriter {
           put.add(HormConfig.defaultFamilyName, getNexPath(path, name), bytes)
         }
       }
-      case v if ComplexBinder.binders.contains(value.getClass) => ComplexBinder.binders(value.getClass).write(getNexPath(path, name), name, v, put)
+      case v if ComplexBinder.binders.contains(value.getClass) => ComplexBinder.binders(value.getClass).write(getNexPath(path, name), name, field, v, put)
       case v if v.isInstanceOf[Map[_, _]] => {
+        val hormMap = field.getAnnotation(classOf[HormMap])
+        val typeKey = hormMap match {
+          case null => classOf[String]
+          case _ => hormMap.key()
+        }
         var i = 0
+        val p = getNexPath(path, name)
+        println("getNexPath(" + Bytes.toString(path) + ", " + name + ")=" + Bytes.toString(p))
         for ((k, v) <- v.asInstanceOf[Map[_, _]]) {
           logger.debug("getting from map : {} , {}", k.toString, v)
-          val p = getNexPath(path, name)
-          findType(p, "k" + i, k, put)
-          findType(p, "v" + i, v, put)
-          i = i + 1
+          if (typeKey == classOf[String]) {
+            findType(p, k.asInstanceOf[String], null, v, put)
+          } else {
+            findType(p, "k" + i, null, k, put)
+            findType(p, "v" + i, null, v, put)
+            i = i + 1
+          }
         }
       }
       case v if v.isInstanceOf[Seq[_]] || v.isInstanceOf[Set[_]] => {
@@ -56,10 +69,10 @@ object HormWriter {
         for (e <- v.asInstanceOf[Seq[_]]) {
           logger.debug("getting from seq : {} ", v)
           val p = getNexPath(path, name)
-          findType(p, i.toString, e, put)
+          findType(p, i.toString, null, e, put)
           i = i + 1
         }
-      } case v: Any => ObjectBinder.write(getNexPath(path, name), name, v, put)
+      } case v: Any => ObjectBinder.write(getNexPath(path, name), name, field, v, put)
       case _ => logger.warn("type is not supported for name {} and path {}", name, Bytes.toString(path)); null
     }
   }

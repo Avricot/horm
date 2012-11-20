@@ -114,25 +114,32 @@ object HormReader {
         //We don't have any data on this company, we return null. //TODO return an empty map instead ?
         if (!objArgs.contains(family)) return null
         //retrieve the map of keys/values from the results
-        val paramMap = scala.collection.mutable.Map[String, KeyValue]()
-        for ((k, v) <- objArgs.get(family).get) {
-          val lastDot = k.lastIndexOf(".")
-          val (mapIndice, valueTypeReduced) = lastDot match {
-            case -1 => (k.substring(1), k)
-            case _ => (k.substring(lastDot + 2), k.substring(lastDot + 1))
-          }
-          val paramMapVal = if (paramMap.contains(mapIndice)) paramMap(mapIndice) else KeyValue()
-          paramMapVal.set(valueTypeReduced, v)
-          paramMap(mapIndice) = paramMapVal
-        }
-        val map = scala.collection.mutable.Map[Any, Any]()
         val hormMap = currentField.getAnnotation(classOf[HormMap])
         val (typeKey, typeValue) = hormMap match {
           case null => (S, S)
           case _ => (hormMap.key(), hormMap.value())
         }
-        for ((i, kv) <- paramMap) {
-          map(RawBinder.binders(typeKey).read(kv.key)) = RawBinder.binders(typeValue).read(kv.value)
+        val map = scala.collection.mutable.Map[Any, Any]()
+        if (typeKey == S) {
+          for ((k, v) <- objArgs.get(family).get) {
+            map(k) = RawBinder.binders(typeValue).read(v)
+          }
+        } else {
+          val paramMap = scala.collection.mutable.Map[String, KeyValue]()
+          for ((k, v) <- objArgs.get(family).get) {
+            val lastDot = k.lastIndexOf(".")
+            val (mapIndice, valueTypeReduced) = lastDot match {
+              case -1 => (k.substring(1), k)
+              case _ => (k.substring(lastDot + 2), k.substring(lastDot + 1))
+            }
+            val paramMapVal = if (paramMap.contains(mapIndice)) paramMap(mapIndice) else KeyValue()
+            paramMapVal.set(valueTypeReduced, v)
+            paramMap(mapIndice) = paramMapVal
+          }
+
+          for ((i, kv) <- paramMap) {
+            map(RawBinder.binders(typeKey).read(kv.key)) = RawBinder.binders(typeValue).read(kv.value)
+          }
         }
         //Build the correct map type.
         k match {

@@ -18,7 +18,7 @@ object ObjectBinder extends ComplexBinder[Any] {
       logger.debug("objArgs.get({}).get({})", family, field.getName)
       //If the field exist (AnyRef), getValue will build it.
       if (objArgs.get(family).get.contains(field.getName())) {
-        if (logger.isDebugEnabled()) logger.debug("exists{}" + objArgs.get(family).get(field.getName()))
+        if (logger.isDebugEnabled()) logger.debug("val exists{}" + objArgs.get(family).get(field.getName()))
         val value = RawBinder.binders(field.getType()).read(objArgs.get(family).get(field.getName())).asInstanceOf[Object]
         args += value
       } else {
@@ -31,23 +31,21 @@ object ObjectBinder extends ComplexBinder[Any] {
       logger.debug("argsNumber: {}", args.size)
       args.foreach(logger.debug("arg: {}", _))
     }
-    println(klass + "args" + args)
     val constructor = klass.getConstructors.head
     val o = constructor.newInstance(args: _*)
-    println(o)
     logger.debug("object constructed {}", o)
     o
   }
 
-  override def write(family: Array[Byte], fieldName: String, obj: Any, put: Put) = {
+  override def write(family: Array[Byte], fieldName: String, field: Field, obj: Any, put: Put) = {
     logger.debug("exploring object {} ", obj.getClass)
-    for (field <- obj.getClass.getDeclaredFields) {
-      field.setAccessible(true)
-      val t = field.getType()
-      val value = field.get(obj)
+    for (f <- obj.getClass.getDeclaredFields) {
+      f.setAccessible(true)
+      val t = f.getType()
+      val value = f.get(obj)
       //remove $outer access
-      if (!field.getName().startsWith("$")) {
-        HormWriter.findType(family, field.getName, value, put)
+      if (value != null && !f.getName().startsWith("$")) {
+        HormWriter.findType(family, f.getName(), f, value, put)
       }
     }
   }

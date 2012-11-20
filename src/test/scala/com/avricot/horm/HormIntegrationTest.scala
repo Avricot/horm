@@ -60,9 +60,7 @@ class TraceIntegrationTest {
     TripleObjWrapper.delete(Array[Byte](22))
   }
 
-  @Test def read(): Unit = {
-    HormConfig.init("localhost", 2181)
-    HormConfig.initTable(classOf[TraceContent])
+  @Ignore @Test def read(): Unit = {
     val t = TraceContent.find(Array[Byte](22))
     println(t)
     Assert.assertTrue(t != None)
@@ -79,7 +77,6 @@ class TraceIntegrationTest {
   }
 
   @Ignore @Test def write(): Unit = {
-    HormConfig.init("localhost", 2181)
 
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
@@ -91,7 +88,7 @@ class TraceIntegrationTest {
     TraceContent.delete(Array[Byte](22))
   }
 
-  @Ignore @Test def writeReadDelete() = {
+  @Test def writeReadDelete() = {
     HormConfig.init("localhost", 2181)
     HormConfig.initTable(classOf[TraceContent])
     write()
