@@ -124,18 +124,18 @@ If you need to add a primitive conversion (an object is mapped as a unique value
 If you need to add a complex conversion (for example to store an object with multiple fields), you need to add a Binder to the ComplexBinder.binders map :
 
 
-    object ObjectBinder extends ComplexBinder[MyObject] {
-      ComplexBinder.binders(classOf[MyObject]) = this
+object ObjectBinder extends ComplexBinder[MyObject] {
+  ComplexBinder.binders(classOf[MyObject]) = this
 
-      override def read(objArgs: Map[String, Map[String, Array[Byte]]], klass: Class[_], family: String, currentField: Field) = {
-          //...build the object from the sb
-      }
+  override def read(objArgs: Map[String, Map[String, Array[Byte]]], klass: Class[_], family: String, currentField: Field) = {
+      //...build the object from the sb
+  }
 
-      override def write(family: Array[Byte], fieldName: String, field: Field, obj: Any, put: Put) = {
-         // Store the object to the db.
-      }
+  override def write(family: Array[Byte], fieldName: String, field: Field, obj: Any, put: Put) = {
+     // Store the object to the db.
+  }
 
-    }
+}
 
 
 ###Region number scan
