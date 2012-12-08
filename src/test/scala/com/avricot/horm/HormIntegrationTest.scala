@@ -9,7 +9,6 @@ import org.junit.Ignore
 import annotation.target.field
 import scala.annotation.target.field
 import scala.reflect.BeanProperty
-import scala.annotation.target.field
 import java.nio.ByteBuffer
 import scala.collection.Seq
 
@@ -77,7 +76,6 @@ class TraceIntegrationTest {
   }
 
   @Ignore @Test def write(): Unit = {
-
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
     val trace = TraceContent(new Trace(Array[Byte](22), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
