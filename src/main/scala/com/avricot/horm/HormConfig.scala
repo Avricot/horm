@@ -18,6 +18,7 @@ object HormConfig {
   val defaultFamilyNameStr = "data"
   val defaultFamilyName = Bytes.toBytes(defaultFamilyNameStr)
 
+  private var htablePool: HTablePool = null
   private var configuration: Configuration = null
   private var executor: ExecutorService = null
   private var regionNumber: Int = 3
@@ -30,12 +31,12 @@ object HormConfig {
     configuration.setInt(HConstants.ZOOKEEPER_CLIENT_PORT, zookeeperClientPort)
     executor = Executors.newFixedThreadPool(regionThreadPoolSize);
     regionNumber = regionNum
+    val htablePool = new HTablePool(configuration, 1000)
+    def getRegionScanExecutor = executor
+    def getHBaseConf = configuration
+    def getRegionNumber = regionNumber
   }
 
-  val htablePool = new HTablePool(configuration, 1000)
-  def getRegionScanExecutor = executor
-  def getHBaseConf = configuration
-  def getRegionNumber = regionNumber
   def getTable(tableName: String) = htablePool.getTable(tableName)
 
   /**
