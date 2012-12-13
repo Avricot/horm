@@ -35,6 +35,7 @@ import com.google.common.primitives.UnsignedBytes
 import com.google.common.primitives.SignedBytes
 import scala.collection.immutable.Set
 import org.apache.hadoop.hbase.client.HTablePool
+import scala.annotation.tailrec
 /**
  * Default hbase trait.
  */
@@ -123,13 +124,19 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
 
   /**
    * Scan a table, execute the given fun to retrive the A and return a list of the values.
+   * Initialization method
    */
-  def scan[R](rs: ResultScanner, fun: (Result) => Option[R]): List[R] = rs.next() match {
-    case v if v == null => Nil
+  def scan[R](rs: ResultScanner, fun: (Result) => Option[R]): List[R] = scan(rs, fun, Nil)
+
+  /**
+   * Scan a table, execute the given fun to retrive the A and return a list of the values.
+   */
+  @tailrec final def scan[R](rs: ResultScanner, fun: (Result) => Option[R], result: List[R]): List[R] = rs.next() match {
+    case r if r == null => result
     case r =>
       fun(r) match {
-        case None => scan(rs, fun)
-        case v => v.get :: scan(rs, fun)
+        case None => scan(rs, fun, result)
+        case v => scan(rs, fun, v.get :: result)
       }
   }
 
