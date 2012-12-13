@@ -31,11 +31,12 @@ object HormConfig {
     configuration.setInt(HConstants.ZOOKEEPER_CLIENT_PORT, zookeeperClientPort)
     executor = Executors.newFixedThreadPool(regionThreadPoolSize);
     regionNumber = regionNum
-    val htablePool = new HTablePool(configuration, 1000)
-    def getRegionScanExecutor = executor
-    def getHBaseConf = configuration
-    def getRegionNumber = regionNumber
+    htablePool = new HTablePool(configuration, 1000)
   }
+
+  def getRegionScanExecutor = executor
+  def getHBaseConf = configuration
+  def getRegionNumber = regionNumber
 
   def getTable(tableName: String) = htablePool.getTable(tableName)
 
