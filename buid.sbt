@@ -43,10 +43,11 @@ pomExtra := (
 
 libraryDependencies ++= Seq(
     "junit" % "junit" % "4.10" % "test",
-    "org.apache.hbase" % "hbase" % "0.94.0",
+    "org.apache.hbase" % "hbase" % "0.94.0"  exclude("org.jruby", "jruby-complete") ,
     "org.apache.hadoop" % "hadoop-common" % "0.23.1" ,
     "org.apache.hadoop" % "hadoop-auth" % "0.23.1" ,
     "joda-time" % "joda-time" % "2.1" ,
+    "org.joda" % "joda-convert" % "1.2",
     "com.google.guava" % "guava" % "r09" ,
     "org.slf4j" % "slf4j-api" % "1.6.6" )
 
