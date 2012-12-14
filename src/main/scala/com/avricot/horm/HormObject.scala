@@ -83,6 +83,15 @@ class HormObject[A <: HormBaseObject](tabName: String = null) {
   }
 
   /**
+   * Return true if the key exists (at least 1 column).
+   */
+  def exists(id: Array[Byte]): Boolean = {
+    val get = new Get(id)
+    val result = table.get(get)
+    !result.isEmpty()
+  }
+
+  /**
    * Return an object by it's id.
    */
   def find(id: String): Option[A] = {
