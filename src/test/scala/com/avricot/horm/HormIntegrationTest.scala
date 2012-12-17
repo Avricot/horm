@@ -30,7 +30,7 @@ case class User(id: Long, firstname: String, lastname: Int)
 case class TraceContent(trace: Trace) extends HormBaseObject {
   override def getHBaseId() = trace.id
 }
-case class Trace(id: Array[Byte], category: String, user: User, @(HormMap @field)(key = classOf[String], value = classOf[Int]) data: scala.collection.mutable.Map[String, Int], @(HormMap @field)(key = classOf[Boolean], value = classOf[Long]) imudata: scala.collection.immutable.Map[Boolean, Long], bool: Boolean, date: DateTime = null)
+case class Trace(id: Array[Byte], treeMap: scala.collection.immutable.TreeMap[String, String], category: String, user: User, @(HormMap @field)(key = classOf[String], value = classOf[Int]) data: scala.collection.mutable.Map[String, Int], @(HormMap @field)(key = classOf[Boolean], value = classOf[Long]) imudata: scala.collection.immutable.Map[Boolean, Long], bool: Boolean, date: DateTime = null)
 
 object TraceContent extends HormObject[TraceContent]
 
@@ -72,13 +72,18 @@ class TraceIntegrationTest {
     Assert.assertEquals(2, t.get.trace.data.size)
     Assert.assertEquals(1L, t.get.trace.imudata.get(false).get)
     Assert.assertEquals(1, t.get.trace.imudata.size)
+    val it = t.get.trace.treeMap.iterator
+    Assert.assertEquals("aa", it.next._1)
+    Assert.assertEquals("ee", it.next._1)
+    Assert.assertEquals("oo", it.next._1)
+    Assert.assertEquals("zz", it.next._1)
     t
   }
 
   @Ignore @Test def write(): Unit = {
     val user = User(45L, "firstname", 21)
     val d1 = new DateTime(15654564L)
-    val trace = TraceContent(new Trace(Array[Byte](22), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
+    val trace = TraceContent(new Trace(Array[Byte](22), scala.collection.immutable.TreeMap("ee" -> "lkjqsd", "zz" -> "sdf", "aa" -> "sdf", "oo" -> "qze"), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
     TraceContent.save(trace)
   }
 

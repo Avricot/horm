@@ -18,15 +18,22 @@ import com.avricot.horm.binder.raw.ComplexBinder
 import com.avricot.horm.HormList
 import scala.collection.immutable.List
 import scala.collection.immutable.Set
+import scala.collection.mutable.HashMap
 
 /**
  * Read scala object from hbase.
  */
 object HormReader {
   val logger = LoggerFactory.getLogger(HormReader.getClass())
+  val orderings = HashMap[Class[_], Ordering[Any]](
+    classOf[String] -> new Ordering[Any] { def compare(o1: Any, o2: Any) = o1.asInstanceOf[String].compareTo(o2.asInstanceOf[String]) },
+    classOf[Long] -> new Ordering[Any] { def compare(o1: Any, o2: Any) = o1.asInstanceOf[Long].compareTo(o2.asInstanceOf[Long]) },
+    classOf[Int] -> new Ordering[Any] { def compare(o1: Any, o2: Any) = o1.asInstanceOf[Int].compareTo(o2.asInstanceOf[Int]) },
+    classOf[Float] -> new Ordering[Any] { def compare(o1: Any, o2: Any) = o1.asInstanceOf[Float].compareTo(o2.asInstanceOf[Float]) })
 
   val S = classOf[String]
   val MM = classOf[scala.collection.mutable.Map[_, _]]
+  val ITM = classOf[scala.collection.immutable.TreeMap[_, _]]
   val IM = classOf[scala.collection.immutable.Map[_, _]]
   val SM = classOf[scala.collection.Map[_, _]]
   val SET = classOf[scala.collection.Set[_]]
@@ -109,7 +116,7 @@ object HormReader {
           case k if k == MSEQ => scala.collection.mutable.ArraySeq(paramList: _*)
         }
       }
-      case k if k == MM || k == IM || k == SM => {
+      case k if k == MM || k == ITM || k == IM || k == SM => {
         logger.debug(" {} is a map", family)
         //We don't have any data on this company, we return null. //TODO return an empty map instead ?
         if (!objArgs.contains(family)) return null
@@ -142,11 +149,16 @@ object HormReader {
             map(RawBinder.binders(typeKey).read(kv.key)) = RawBinder.binders(typeValue).read(kv.value)
           }
         }
+
         //Build the correct map type.
         k match {
           case k if k == IM || k == SM => map.toMap
           case k if k == MM => map
-          case k if k == classOf[scala.collection.mutable.Map[_, _]] => map;
+          case k if k == classOf[scala.collection.mutable.Map[_, _]] => map
+          case k if k == classOf[scala.collection.immutable.TreeMap[_, _]] => {
+            val ordering = orderings(typeKey)
+            scala.collection.immutable.TreeMap[Any, Any]()(ordering) ++ map
+          }
           case k if k == classOf[scala.collection.mutable.WeakHashMap[_, _]] => scala.collection.mutable.WeakHashMap[Any, Any]() ++ map
           case k if k == classOf[scala.collection.mutable.OpenHashMap[_, _]] => scala.collection.mutable.OpenHashMap[Any, Any]() ++ map
           case k if k == classOf[scala.collection.mutable.LinkedHashMap[_, _]] => scala.collection.mutable.LinkedHashMap[Any, Any]() ++ map
