@@ -65,7 +65,7 @@ class TraceIntegrationTest {
     Assert.assertTrue(t != None)
     Assert.assertEquals("category", t.get.trace.category)
     Assert.assertEquals(45L, t.get.trace.user.id)
-    Assert.assertEquals("firstname", t.get.trace.user.firstname)
+    Assert.assertEquals("firstnamée", t.get.trace.user.firstname)
     Assert.assertEquals(21, t.get.trace.user.lastname)
     Assert.assertEquals(2, t.get.trace.data.get("a").get)
     Assert.assertEquals(4, t.get.trace.data.get("asdsf").get)
@@ -81,7 +81,7 @@ class TraceIntegrationTest {
   }
 
   @Ignore @Test def write(): Unit = {
-    val user = User(45L, "firstname", 21)
+    val user = User(45L, "firstnamée", 21)
     val d1 = new DateTime(15654564L)
     val trace = TraceContent(new Trace(Array[Byte](22), scala.collection.immutable.TreeMap("ee" -> "lkjqsd", "zz" -> "sdf", "aa" -> "sdf", "oo" -> "qze"), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
     TraceContent.save(trace)
