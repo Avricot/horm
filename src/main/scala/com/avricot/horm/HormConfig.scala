@@ -17,6 +17,7 @@ object HormConfig {
   def logger = LoggerFactory.getLogger(HormConfig.getClass())
   val defaultFamilyNameStr = "data"
   val defaultFamilyName = Bytes.toBytes(defaultFamilyNameStr)
+  val nullValue = "|HN|"
 
   private var htablePool: HTablePool = null
   private var configuration: Configuration = null

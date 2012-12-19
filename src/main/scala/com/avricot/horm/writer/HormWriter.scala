@@ -20,6 +20,7 @@ import com.avricot.horm.HormMap
  */
 object HormWriter {
   val logger = LoggerFactory.getLogger(HormWriter.getClass())
+  val nullValue = Bytes.toBytes(HormConfig.nullValue)
 
   def write(defaultPath: Array[Byte], obj: HormBaseObject) = {
     val put = new Put(obj.getHBaseId)
@@ -56,7 +57,11 @@ object HormWriter {
           logger.debug("getting from map : {} , {}", k.toString, v)
           //String as key
           if (typeKey == classOf[String]) {
-            findType(p, k.asInstanceOf[String], null, v, put)
+            if (v == null) {
+              put.add(HormConfig.defaultFamilyName, getNexPath(p, k.asInstanceOf[String]), nullValue)
+            } else {
+              findType(p, k.asInstanceOf[String], null, v, put)
+            }
           } else {
             findType(p, "k" + i, null, k, put)
             findType(p, "v" + i, null, v, put)

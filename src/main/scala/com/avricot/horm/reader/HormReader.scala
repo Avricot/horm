@@ -19,6 +19,7 @@ import com.avricot.horm.HormList
 import scala.collection.immutable.List
 import scala.collection.immutable.Set
 import scala.collection.mutable.HashMap
+import com.avricot.horm.HormConfig
 
 /**
  * Read scala object from hbase.
@@ -130,7 +131,10 @@ object HormReader {
         //String as key
         if (typeKey == S) {
           for ((k, v) <- objArgs.get(family).get) {
-            map(k) = RawBinder.binders(typeValue).read(v)
+            map(k) = RawBinder.binders(typeValue).read(v) match {
+              case HormConfig.nullValue => null
+              case value => value
+            }
           }
         } else {
           val paramMap = scala.collection.mutable.Map[String, KeyValue]()
@@ -146,7 +150,10 @@ object HormReader {
           }
 
           for ((i, kv) <- paramMap) {
-            map(RawBinder.binders(typeKey).read(kv.key)) = RawBinder.binders(typeValue).read(kv.value)
+            map(RawBinder.binders(typeKey).read(kv.key)) = kv.value match {
+              case null => null
+              case value => RawBinder.binders(typeValue).read(value)
+            }
           }
         }
 

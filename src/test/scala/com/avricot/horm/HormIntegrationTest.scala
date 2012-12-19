@@ -73,9 +73,13 @@ class TraceIntegrationTest {
     Assert.assertEquals(1L, t.get.trace.imudata.get(false).get)
     Assert.assertEquals(1, t.get.trace.imudata.size)
     val it = t.get.trace.treeMap.iterator
-    Assert.assertEquals("aa", it.next._1)
+    val emptyValue = it.next
+    Assert.assertEquals("aa", emptyValue._1)
+    Assert.assertEquals("", emptyValue._2)
     Assert.assertEquals("ee", it.next._1)
-    Assert.assertEquals("oo", it.next._1)
+    val nullValue = it.next
+    Assert.assertEquals("oo", nullValue._1)
+    Assert.assertEquals(null, nullValue._2)
     Assert.assertEquals("zz", it.next._1)
     t
   }
@@ -83,7 +87,7 @@ class TraceIntegrationTest {
   @Ignore @Test def write(): Unit = {
     val user = User(45L, "firstnamée", 21)
     val d1 = new DateTime(15654564L)
-    val trace = TraceContent(new Trace(Array[Byte](22), scala.collection.immutable.TreeMap("ee" -> "lkjqsd", "zz" -> "sdf", "aa" -> "sdf", "oo" -> "qze"), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
+    val trace = TraceContent(new Trace(Array[Byte](22), scala.collection.immutable.TreeMap("ee" -> "lkjqsd", "zz" -> "sdf", "aa" -> "", "oo" -> null), "category", user, scala.collection.mutable.Map[String, Int]("a" -> 2, "asdsf" -> 4), scala.collection.immutable.Map[Boolean, Long](false -> 1L), true))
     TraceContent.save(trace)
   }
 
